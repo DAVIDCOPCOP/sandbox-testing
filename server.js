@@ -2,32 +2,19 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
-const os = require('os');
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const PUBLIC_URL = 'https://sandbox-testing-production.up.railway.app';
 
 // Serve static files from /public
 app.use(express.static('public'));
 
-// Get local IP so phone can connect to the same machine
-function getLocalIP() {
-  const nets = os.networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return 'localhost';
-}
-
-// Endpoint: generate QR code pointing to /phone.html on local IP
+// Endpoint: generate QR code pointing to /phone.html on Railway URL
 app.get('/qrcode', async (req, res) => {
-  const ip = getLocalIP();
-  const url = `http://${ip}:${PORT}/phone.html`;
+  const url = `${PUBLIC_URL}/phone.html`;
   const qr = await QRCode.toDataURL(url, { width: 256, margin: 2 });
   res.json({ qr, url });
 });
@@ -47,8 +34,7 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  const ip = getLocalIP();
   console.log(`\n✅ Sandbox Testing running!`);
-  console.log(`   Desktop → http://localhost:${PORT}`);
-  console.log(`   Phone   → http://${ip}:${PORT}/phone.html\n`);
+  console.log(`   Desktop → ${PUBLIC_URL}`);
+  console.log(`   Phone   → ${PUBLIC_URL}/phone.html\n`);
 });
