@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sandbox Testing</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      display: flex;
+      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f0f0;
+      color: #111;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 220px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    #sidebar h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #89b4fa;
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .sidebar-item:hover { background: #313244; }
+    .sidebar-item.active { background: #45475a; color: #cba6f7; }
+
+    .sidebar-item input[type="checkbox"] {
+      accent-color: #cba6f7;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    /* ── Main content ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 2rem;
+    }
+
+    /* ── QR panel ── */
+    #qr-panel {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+      text-align: center;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    #qr-panel.visible { display: flex; }
+
+    #qr-panel img { width: 200px; height: 200px; border-radius: 8px; }
+
+    #qr-panel p {
+      font-size: 13px;
+      color: #555;
+    }
+
+    #qr-url {
+      font-size: 12px;
+      color: #89b4fa;
+      word-break: break-all;
+    }
+
+    /* ── Colour display ── */
+    #colour-display {
+      width: 320px;
+      height: 320px;
+      border-radius: 24px;
+      background: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #888;
+      font-weight: 500;
+      transition: background 0.4s ease;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    }
+
+    #colour-label {
+      font-size: 14px;
+      color: #555;
+      margin-top: -1rem;
+    }
+
+    #status-dot {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #aaa;
+    }
+    .dot.connected { background: #a6e3a1; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <h1>Sandbox Testing</h1>
+
+    <div class="sidebar-item" id="qr-toggle" onclick="toggleQR()">
+      <input type="checkbox" id="qr-check" onclick="event.stopPropagation()" onchange="toggleQR()" />
+      <span>Colour Picker</span>
+    </div>
+
+    <!-- More features will go here -->
+  </nav>
+
+  <!-- Main -->
+  <main id="main">
+
+    <!-- QR Code panel -->
+    <div id="qr-panel">
+      <img id="qr-img" src="" alt="QR Code" />
+      <p>Scan with your phone to open the colour picker</p>
+      <span id="qr-url"></span>
+    </div>
+
+    <!-- Colour display -->
+    <div id="colour-display">Waiting for colour...</div>
+    <div id="colour-label" id="colour-label"></div>
+
+  </main>
+
+  <!-- Connection status -->
+  <div id="status-dot">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">Connecting...</span>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let qrLoaded = false;
+
+    // Connection status
+    socket.on('connect', () => {
+      document.getElementById('dot').classList.add('connected');
+      document.getElementById('status-text').textContent = 'Connected';
+    });
+    socket.on('disconnect', () => {
+      document.getElementById('dot').classList.remove('connected');
+      document.getElementById('status-text').textContent = 'Disconnected';
+    });
+
+    // Receive colour from phone
+    socket.on('colour-update', (colour) => {
+      const display = document.getElementById('colour-display');
+      display.style.background = colour.hex;
+      display.textContent = '';
+      document.getElementById('colour-label').textContent = colour.name;
+    });
+
+    // Toggle QR panel
+    function toggleQR() {
+      const check = document.getElementById('qr-check');
+      const panel = document.getElementById('qr-panel');
+      const item  = document.getElementById('qr-toggle');
+
+      // Sync checkbox state
+      check.checked = !check.checked;
+      const isOpen = check.checked;
+
+      panel.classList.toggle('visible', isOpen);
+      item.classList.toggle('active', isOpen);
+
+      if (isOpen && !qrLoaded) {
+        fetch('/qrcode')
+          .then(r => r.json())
+          .then(data => {
+            document.getElementById('qr-img').src = data.qr;
+            document.getElementById('qr-url').textContent = data.url;
+            qrLoaded = true;
+          });
+      }
+    }
+  </script>
+</body>
+</html>
