@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const PUBLIC_URL = 'https://sandbox-testing-production.up.railway.app';
 
 // Serve static files from /public
