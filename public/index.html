@@ -757,6 +757,7 @@
     });
 
     socket.on('chess:game-start', ({ gameId, color }) => {
+      sessionStorage.setItem('chess_user', currentUser);
       window.location.href = `/chess.html?game=${gameId}&color=${color}`;
     });
 

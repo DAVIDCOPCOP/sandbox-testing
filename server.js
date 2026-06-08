@@ -242,6 +242,9 @@ io.on('connection', (socket) => {
     if (game.white !== username && game.black !== username) return;
     socket.join(`game:${gameId}`);
     socket.data.gameId = gameId;
+    const color = game.white === username ? 'white' : 'black';
+    const opponent = color === 'white' ? game.black : game.white;
+    socket.emit('chess:game-info', { color, opponent });
     socket.emit('chess:state', {
       fen: game.chess.fen(),
       turn: game.chess.turn(),

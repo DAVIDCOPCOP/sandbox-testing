@@ -187,6 +187,19 @@
       color: #1e1e2e;
     }
 
+    .turn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #313244;
+      transition: background 0.2s, box-shadow 0.2s;
+      flex-shrink: 0;
+    }
+    .turn-dot.active {
+      background: #a6e3a1;
+      box-shadow: 0 0 6px #a6e3a1;
+    }
+
     /* ── Board wrapper: rank labels + board ── */
     .board-wrap {
       display: flex;
@@ -384,6 +397,7 @@
       <!-- Opponent bar (top) -->
       <div class="player-bar" id="opp-bar">
         <div class="player-info">
+          <span class="turn-dot" id="opp-dot"></span>
           <span class="player-name" id="opp-name"></span>
           <span class="player-badge" id="opp-badge"></span>
         </div>
@@ -401,6 +415,7 @@
       <!-- My bar (bottom) with turn indicator -->
       <div class="player-bar" id="my-bar">
         <div class="player-info">
+          <span class="turn-dot" id="my-dot"></span>
           <span class="player-name" id="my-name"></span>
           <span class="player-badge" id="my-badge"></span>
         </div>
@@ -475,11 +490,25 @@
       updateTurnBar(turn);
     });
 
+    socket.on('chess:game-info', ({ color, opponent }) => {
+      myColor      = color;
+      opponentName = opponent;
+      document.getElementById('my-name').textContent   = myUsername;
+      document.getElementById('my-badge').textContent  = myColor === 'white' ? '♙ White' : '♟ Black';
+      document.getElementById('opp-name').textContent  = opponentName;
+      document.getElementById('opp-badge').textContent = myColor === 'white' ? '♟ Black' : '♙ White';
+      buildCoordinates();
+      document.getElementById('loading').style.display   = 'none';
+      document.getElementById('game-area').style.display = 'flex';
+    });
+
     socket.on('chess:game-over', ({ type, winner, reason }) => {
       gameOver = true;
       const indicator = document.getElementById('turn-indicator');
       indicator.textContent = 'Game over';
       indicator.classList.remove('my-turn');
+      document.getElementById('my-dot').classList.remove('active');
+      document.getElementById('opp-dot').classList.remove('active');
 
       const headline = document.getElementById('result-headline');
       const detail   = document.getElementById('result-detail');
@@ -498,6 +527,8 @@
       const indicator = document.getElementById('turn-indicator');
       indicator.textContent = 'Game over';
       indicator.classList.remove('my-turn');
+      document.getElementById('my-dot').classList.remove('active');
+      document.getElementById('opp-dot').classList.remove('active');
       document.getElementById('result-headline').textContent = 'Game ended';
       document.getElementById('result-detail').textContent   = `${username} left the game`;
       document.getElementById('result-banner').classList.add('visible');
@@ -631,6 +662,8 @@
       const el = document.getElementById('turn-indicator');
       el.textContent = mine ? 'Your turn' : `${opponentName}'s turn`;
       el.classList.toggle('my-turn', mine);
+      document.getElementById('my-dot').classList.toggle('active', mine);
+      document.getElementById('opp-dot').classList.toggle('active', !mine);
     }
 
     // ── Coordinate labels ──
@@ -687,34 +720,18 @@
         return;
       }
 
-      // Verify auth
-      const meRes = await fetch('/auth/me');
-      const me = await meRes.json();
-      if (!me.user) {
-        window.location.href = '/';
-        return;
+      // Use tab-specific sessionStorage (set by index.html before navigation).
+      // Fallback to HTTP session for direct URL access.
+      myUsername = sessionStorage.getItem('chess_user');
+      if (!myUsername) {
+        const meRes = await fetch('/auth/me');
+        const me = await meRes.json();
+        if (!me.user) { window.location.href = '/'; return; }
+        myUsername = me.user;
       }
-      myUsername = me.user;
 
-      // Verify game access & get colour assignment
-      const gameRes = await fetch(`/chess/game/${gameId}`);
-      if (!gameRes.ok) {
-        showError('Game not found or you are not a participant.');
-        return;
-      }
-      const game = await gameRes.json();
-      myColor      = game.color;    // 'white' | 'black'
-      opponentName = game.opponent;
-
-      // Populate UI
-      document.getElementById('my-name').textContent   = myUsername;
-      document.getElementById('my-badge').textContent  = myColor === 'white' ? '♙ White' : '♟ Black';
-      document.getElementById('opp-name').textContent  = opponentName;
-      document.getElementById('opp-badge').textContent = myColor === 'white' ? '♟ Black' : '♙ White';
-      buildCoordinates();
-
-      document.getElementById('loading').style.display   = 'none';
-      document.getElementById('game-area').style.display = 'flex';
+      // color comes from URL param (set by index.html); confirmed by chess:game-info
+      myColor = params.get('color') || null;
 
       // Chat form
       document.getElementById('chat-form').addEventListener('submit', (e) => {
@@ -726,7 +743,7 @@
         input.value = '';
       });
 
-      // Join socket rooms and request current board state
+      // Join socket rooms; server responds with chess:game-info then chess:state
       socket.emit('join-user-room', myUsername);
       socket.emit('chess:join-game', gameId);
     }
