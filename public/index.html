@@ -68,6 +68,7 @@
       justify-content: center;
       padding: 2rem;
       gap: 2rem;
+      overflow-y: auto;
     }
 
     /* ── QR panel ── */
@@ -151,6 +152,175 @@
     .logged-in-info { font-size: 14px; color: #555; }
     .logged-in-info strong { color: #1e1e2e; }
 
+    /* ── Chess panel ── */
+    #chess-panel {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      width: 320px;
+      max-height: 420px;
+    }
+
+    #chess-panel.visible { display: flex; }
+
+    #chess-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e1e2e;
+      flex-shrink: 0;
+    }
+
+    #chess-not-logged-in {
+      font-size: 13px;
+      color: #888;
+    }
+
+    #chess-logged-in {
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 0;
+    }
+
+    #chess-pending-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #f4f0ff;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #555;
+      flex-shrink: 0;
+    }
+
+    .chess-cancel-btn {
+      padding: 4px 10px;
+      background: #e8e8e8;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .chess-cancel-btn:hover { opacity: 0.8; }
+
+    .online-users-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      overflow-y: auto;
+    }
+
+    .online-user-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 4px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .online-user-row:last-child { border-bottom: none; }
+
+    .online-user-name {
+      font-size: 14px;
+      color: #333;
+    }
+
+    .invite-btn {
+      padding: 5px 12px;
+      background: #89b4fa;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .invite-btn:hover:not(:disabled) { opacity: 0.8; }
+    .invite-btn:disabled {
+      background: #e8e8e8;
+      color: #aaa;
+      cursor: default;
+    }
+
+    .in-game-badge {
+      font-size: 12px;
+      color: #bbb;
+      font-style: italic;
+    }
+
+    /* ── Invite popup ── */
+    #invite-popup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #invite-popup.visible { display: flex; }
+
+    #invite-popup-inner {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      text-align: center;
+      max-width: 300px;
+      width: 90%;
+    }
+
+    #invite-popup-inner p {
+      font-size: 15px;
+      color: #1e1e2e;
+      line-height: 1.5;
+    }
+
+    .invite-popup-buttons {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .invite-popup-buttons button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .invite-popup-buttons button:hover { opacity: 0.85; }
+    .invite-accept-btn  { background: #a6e3a1; color: #1e1e2e; }
+    .invite-decline-btn { background: #e8e8e8; color: #333; }
+
+    /* ── Toast ── */
+    #chess-toast {
+      display: none;
+      position: fixed;
+      bottom: 52px;
+      right: 16px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 50;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
     /* ── Colour display ── */
     #colour-display {
       width: 320px;
@@ -204,6 +374,10 @@
       <span>Colour Picker</span>
     </div>
 
+    <div class="sidebar-item" id="chess-toggle" onclick="toggleChess()">
+      <span>Chess</span>
+    </div>
+
     <div class="sidebar-item" id="account-toggle" onclick="toggleAccount()">
       <span id="account-sidebar-label">Account</span>
     </div>
@@ -211,6 +385,21 @@
 
   <!-- Main -->
   <main id="main">
+
+    <!-- Chess panel -->
+    <div id="chess-panel">
+      <h2>Chess ♟</h2>
+      <div id="chess-not-logged-in">Log in to see online players</div>
+      <div id="chess-logged-in">
+        <div id="chess-pending-bar">
+          <span id="chess-pending-text"></span>
+          <button class="chess-cancel-btn" onclick="cancelInvite()">Cancel</button>
+        </div>
+        <div class="online-users-list" id="online-users-list">
+          <p style="color:#888; font-size:13px;">No other players online</p>
+        </div>
+      </div>
+    </div>
 
     <!-- Account panel -->
     <div id="account-panel">
@@ -247,6 +436,20 @@
 
   </main>
 
+  <!-- Invite popup -->
+  <div id="invite-popup">
+    <div id="invite-popup-inner">
+      <p><strong id="invite-from-name"></strong> wants to play chess!</p>
+      <div class="invite-popup-buttons">
+        <button class="invite-accept-btn"  onclick="respondInvite(true)">Accept ♟</button>
+        <button class="invite-decline-btn" onclick="respondInvite(false)">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="chess-toast"></div>
+
   <!-- Connection status -->
   <div id="status-dot">
     <div class="dot" id="dot"></div>
@@ -256,9 +459,16 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    let qrLoaded = false;
+    let qrLoaded    = false;
     let currentUser = null;
     let accountOpen = false;
+    let chessOpen   = false;
+
+    // Chess invite state
+    let sentInviteId   = null;
+    let sentInviteTo   = null;
+    let pendingInviteId = null; // received invite we haven't responded to
+    let lastOnlineUsers = [];
 
     // ── Socket ──
     socket.on('connect', () => {
@@ -294,7 +504,7 @@
     function loadQR() {
       fetch('/qrcode')
         .then(r => {
-          if (!r.ok) throw new Error('Not logged in');
+          if (!r.ok) throw new Error();
           return r.json();
         })
         .then(data => {
@@ -312,6 +522,13 @@
       accountOpen = !accountOpen;
       document.getElementById('account-panel').classList.toggle('visible', accountOpen);
       document.getElementById('account-toggle').classList.toggle('active', accountOpen);
+    }
+
+    // ── Chess toggle ──
+    function toggleChess() {
+      chessOpen = !chessOpen;
+      document.getElementById('chess-panel').classList.toggle('visible', chessOpen);
+      document.getElementById('chess-toggle').classList.toggle('active', chessOpen);
     }
 
     // ── Auth state ──
@@ -337,11 +554,24 @@
         document.getElementById('colour-label').textContent = lastColour.name;
       }
 
-      // Reload QR if the panel is already open
+      renderOnlineUsers(lastOnlineUsers);
       if (document.getElementById('qr-check').checked) loadQR();
     }
 
     function applyLoggedOut() {
+      // Cancel any outstanding invite
+      if (sentInviteId) {
+        socket.emit('chess:cancel-invite', sentInviteId);
+        sentInviteId = null;
+        sentInviteTo = null;
+        document.getElementById('chess-pending-bar').style.display = 'none';
+      }
+      if (pendingInviteId) {
+        socket.emit('chess:invite-response', { inviteId: pendingInviteId, accepted: false });
+        pendingInviteId = null;
+        document.getElementById('invite-popup').classList.remove('visible');
+      }
+
       if (currentUser) socket.emit('leave-user-room', currentUser);
       currentUser = null;
       qrLoaded = false;
@@ -354,7 +584,6 @@
       document.getElementById('password-input').value = '';
       document.getElementById('auth-error').textContent = '';
 
-      // Close QR panel on logout
       const check = document.getElementById('qr-check');
       if (check.checked) {
         check.checked = false;
@@ -366,6 +595,8 @@
       display.style.background = '#e0e0e0';
       display.textContent = 'Waiting for colour...';
       document.getElementById('colour-label').textContent = '';
+
+      renderOnlineUsers([]);
     }
 
     // ── Auth actions ──
@@ -410,10 +641,132 @@
       applyLoggedOut();
     }
 
-    // Submit on Enter in password field
     document.getElementById('password-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') login();
     });
+
+    // ── Chess: online users ──
+    socket.on('chess:online-users', (users) => {
+      lastOnlineUsers = users;
+      renderOnlineUsers(users);
+    });
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function renderOnlineUsers(users) {
+      const notLoggedIn = document.getElementById('chess-not-logged-in');
+      const loggedIn    = document.getElementById('chess-logged-in');
+
+      if (!currentUser) {
+        notLoggedIn.style.display = '';
+        loggedIn.style.display = 'none';
+        return;
+      }
+      notLoggedIn.style.display = 'none';
+      loggedIn.style.display = 'flex';
+
+      const list   = document.getElementById('online-users-list');
+      const others = users.filter(u => u.username !== currentUser);
+
+      if (others.length === 0) {
+        list.innerHTML = '<p style="color:#888;font-size:13px;">No other players online</p>';
+        return;
+      }
+
+      list.innerHTML = others.map(u => {
+        if (u.inGame) {
+          return `<div class="online-user-row">
+            <span class="online-user-name">${escHtml(u.username)}</span>
+            <span class="in-game-badge">In game</span>
+          </div>`;
+        }
+        const isPending = sentInviteTo === u.username;
+        return `<div class="online-user-row">
+          <span class="online-user-name">${escHtml(u.username)}</span>
+          <button class="invite-btn" ${isPending ? 'disabled' : ''}
+            data-username="${escHtml(u.username)}"
+            onclick="sendInvite(this.dataset.username)">
+            ${isPending ? 'Pending…' : 'Invite'}
+          </button>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Chess: invite actions ──
+    function sendInvite(toUsername) {
+      if (!currentUser || sentInviteId) return;
+      socket.emit('chess:invite', toUsername);
+    }
+
+    function cancelInvite() {
+      if (!sentInviteId) return;
+      socket.emit('chess:cancel-invite', sentInviteId);
+      sentInviteId = null;
+      sentInviteTo = null;
+      document.getElementById('chess-pending-bar').style.display = 'none';
+      renderOnlineUsers(lastOnlineUsers);
+    }
+
+    function respondInvite(accepted) {
+      if (!pendingInviteId) return;
+      socket.emit('chess:invite-response', { inviteId: pendingInviteId, accepted });
+      pendingInviteId = null;
+      document.getElementById('invite-popup').classList.remove('visible');
+    }
+
+    // ── Chess: socket events ──
+    socket.on('chess:invite-sent', ({ inviteId, to }) => {
+      sentInviteId = inviteId;
+      sentInviteTo = to;
+      document.getElementById('chess-pending-text').textContent = `Waiting for ${to}…`;
+      document.getElementById('chess-pending-bar').style.display = 'flex';
+      renderOnlineUsers(lastOnlineUsers);
+    });
+
+    socket.on('chess:invite-received', ({ inviteId, from }) => {
+      pendingInviteId = inviteId;
+      document.getElementById('invite-from-name').textContent = from;
+      document.getElementById('invite-popup').classList.add('visible');
+    });
+
+    socket.on('chess:invite-declined', ({ by }) => {
+      sentInviteId = null;
+      sentInviteTo = null;
+      document.getElementById('chess-pending-bar').style.display = 'none';
+      renderOnlineUsers(lastOnlineUsers);
+      showToast(`${by} declined your invite`);
+    });
+
+    socket.on('chess:invite-cancelled', ({ inviteId, reason }) => {
+      if (pendingInviteId === inviteId) {
+        pendingInviteId = null;
+        document.getElementById('invite-popup').classList.remove('visible');
+        if (reason === 'timeout')    showToast('Invite expired');
+        if (reason === 'offline')    showToast('Player went offline');
+      }
+      if (sentInviteId === inviteId) {
+        sentInviteId = null;
+        sentInviteTo = null;
+        document.getElementById('chess-pending-bar').style.display = 'none';
+        renderOnlineUsers(lastOnlineUsers);
+        if (reason === 'timeout')    showToast('Invite expired — no response');
+        if (reason === 'offline')    showToast('Player went offline');
+      }
+    });
+
+    socket.on('chess:game-start', ({ gameId, color }) => {
+      window.location.href = `/chess.html?game=${gameId}&color=${color}`;
+    });
+
+    function showToast(msg) {
+      const t = document.getElementById('chess-toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
 
     // Restore session on page load
     fetch('/auth/me')

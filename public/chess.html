@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root { --sq: 68px; }
+
+    body {
+      background: #1e1e2e;
+      font-family: 'Segoe UI', sans-serif;
+      color: #cdd6f4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+    }
+
+    /* ── Loading / error ── */
+    #loading {
+      font-size: 15px;
+      color: #6c7086;
+    }
+
+    /* ── Game area ── */
+    #game-area {
+      display: none;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 1.5rem;
+    }
+
+    #board-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    /* ── Chat panel ── */
+    #chat {
+      display: flex;
+      flex-direction: column;
+      width: 260px;
+      background: #181825;
+      border: 1px solid #313244;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #chat-header {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #6c7086;
+      border-bottom: 1px solid #313244;
+      flex-shrink: 0;
+    }
+
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-track { background: transparent; }
+    #chat-messages::-webkit-scrollbar-thumb { background: #313244; border-radius: 2px; }
+
+    .chat-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .chat-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #89b4fa;
+    }
+
+    .chat-name.mine { color: #a6e3a1; }
+
+    .chat-time {
+      font-size: 10px;
+      color: #45475a;
+    }
+
+    .chat-text {
+      font-size: 13px;
+      color: #cdd6f4;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    #chat-form {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      border-top: 1px solid #313244;
+      flex-shrink: 0;
+    }
+
+    #chat-input {
+      flex: 1;
+      background: #313244;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 13px;
+      color: #cdd6f4;
+      outline: none;
+      font-family: inherit;
+      min-width: 0;
+    }
+
+    #chat-input::placeholder { color: #585b70; }
+    #chat-input:focus { box-shadow: 0 0 0 2px rgba(137,180,250,0.3); }
+
+    #chat-send {
+      background: #89b4fa;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+
+    #chat-send:hover { opacity: 0.85; }
+
+    /* ── Player bars ── */
+    .player-bar {
+      width: calc(8 * var(--sq) + 22px); /* board width + rank label width */
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2px 0 22px; /* left offset matches rank label column */
+    }
+
+    .player-info { display: flex; align-items: center; gap: 8px; }
+
+    .player-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #cdd6f4;
+    }
+
+    .player-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #313244;
+      color: #89b4fa;
+    }
+
+    #turn-indicator {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: #313244;
+      color: #6c7086;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    #turn-indicator.my-turn {
+      background: #a6e3a1;
+      color: #1e1e2e;
+    }
+
+    /* ── Board wrapper: rank labels + board ── */
+    .board-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .board-row {
+      display: flex;
+      align-items: stretch;
+    }
+
+    /* ── Rank labels ── */
+    .rank-labels {
+      display: flex;
+      flex-direction: column;
+      width: 22px;
+      flex-shrink: 0;
+    }
+
+    .rank-label {
+      height: var(--sq);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: #45475a;
+      user-select: none;
+    }
+
+    /* ── File labels ── */
+    .file-labels {
+      display: flex;
+      margin-left: 22px; /* align with board, past rank label column */
+    }
+
+    .file-label {
+      width: var(--sq);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: #45475a;
+      padding-top: 4px;
+      user-select: none;
+    }
+
+    /* ── Board grid ── */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--sq));
+      grid-template-rows: repeat(8, var(--sq));
+      border: 2px solid #313244;
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    /* ── Squares ── */
+    .sq {
+      width: var(--sq);
+      height: var(--sq);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(var(--sq) * 0.76);
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .sq.light { background: #f0d9b5; }
+    .sq.dark  { background: #b58863; }
+
+    /* Last-move tint */
+    .sq.lm-from.light, .sq.lm-to.light { background: #cdd16a; }
+    .sq.lm-from.dark,  .sq.lm-to.dark  { background: #aaa23a; }
+
+    /* Selected piece */
+    .sq.selected.light { background: #7fc97f; }
+    .sq.selected.dark  { background: #56a05a; }
+
+    /* Valid move — dot on empty square */
+    .sq.valid-move::after {
+      content: '';
+      position: absolute;
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.18);
+      pointer-events: none;
+    }
+
+    /* Valid capture — ring on occupied square */
+    .sq.valid-capture::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: calc(var(--sq) * 0.1) solid rgba(0,0,0,0.18);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* King in check */
+    .sq.in-check {
+      background: radial-gradient(circle at center, #ff7b7b 0%, #cc2222 100%) !important;
+    }
+
+    /* ── Piece text ── */
+    .sq span {
+      pointer-events: none;
+      line-height: 1;
+    }
+
+    /* White pieces: white fill with dark outline */
+    .piece-w {
+      color: #ffffff;
+      text-shadow:
+        0 0 2px #000,
+        0 0 2px #000,
+        1px  1px 1px rgba(0,0,0,0.8),
+       -1px -1px 1px rgba(0,0,0,0.8),
+        1px -1px 1px rgba(0,0,0,0.8),
+       -1px  1px 1px rgba(0,0,0,0.8);
+    }
+
+    /* Black pieces: dark fill with light halo */
+    .piece-b {
+      color: #1a1a1a;
+      text-shadow:
+        0 0 3px rgba(255,255,255,0.5),
+        0 0 1px rgba(255,255,255,0.5);
+    }
+
+    /* ── Result banner ── */
+    #result-banner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #result-banner.visible { display: flex; }
+    #result-inner {
+      background: #1e1e2e;
+      border: 1px solid #313244;
+      border-radius: 20px;
+      padding: 2.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      box-shadow: 0 16px 64px rgba(0,0,0,0.6);
+      text-align: center;
+      max-width: 360px;
+    }
+    #result-headline {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6c7086;
+    }
+    #result-detail {
+      font-size: 22px;
+      font-weight: 700;
+      color: #cdd6f4;
+      line-height: 1.3;
+    }
+    .result-back {
+      display: inline-block;
+      padding: 10px 26px;
+      background: #89b4fa;
+      color: #1e1e2e;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    .result-back:hover { opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+  <div id="loading">Joining game…</div>
+
+  <div id="game-area">
+
+    <div id="board-col">
+
+      <!-- Opponent bar (top) -->
+      <div class="player-bar" id="opp-bar">
+        <div class="player-info">
+          <span class="player-name" id="opp-name"></span>
+          <span class="player-badge" id="opp-badge"></span>
+        </div>
+      </div>
+
+      <!-- Board with coordinate labels -->
+      <div class="board-wrap">
+        <div class="board-row">
+          <div class="rank-labels" id="rank-labels"></div>
+          <div id="board"></div>
+        </div>
+        <div class="file-labels" id="file-labels"></div>
+      </div>
+
+      <!-- My bar (bottom) with turn indicator -->
+      <div class="player-bar" id="my-bar">
+        <div class="player-info">
+          <span class="player-name" id="my-name"></span>
+          <span class="player-badge" id="my-badge"></span>
+        </div>
+        <div id="turn-indicator">Waiting…</div>
+      </div>
+
+    </div>
+
+    <!-- Chat panel -->
+    <div id="chat">
+      <div id="chat-header">Chat</div>
+      <div id="chat-messages"></div>
+      <form id="chat-form">
+        <input id="chat-input" type="text" placeholder="Message…" maxlength="200" autocomplete="off" />
+        <button type="submit" id="chat-send">Send</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Result banner overlay -->
+  <div id="result-banner">
+    <div id="result-inner">
+      <div id="result-headline"></div>
+      <div id="result-detail"></div>
+      <a href="/" class="result-back">Back to Lobby</a>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module">
+    import { Chess } from '/lib/chess.js';
+
+    // ── URL params ──
+    const params = new URLSearchParams(window.location.search);
+    const gameId = params.get('game');
+
+    // ── State ──
+    const chess = new Chess();
+    let myColor     = null;   // 'white' | 'black'
+    let myUsername  = null;
+    let opponentName = null;
+    let selectedSq  = null;   // currently selected square, e.g. 'e2'
+    let validDests  = [];     // legal destination squares for selected piece
+    let lastMove    = null;   // { from, to }
+    let gameOver    = false;
+
+    const FILES = 'abcdefgh';
+
+    const SYMBOLS = {
+      wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+      bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
+    };
+
+    // ── Socket ──
+    const socket = io();
+
+    socket.on('connect', () => {
+      // Re-join on reconnect so state is re-synced
+      if (myUsername) {
+        socket.emit('join-user-room', myUsername);
+        socket.emit('chess:join-game', gameId);
+      }
+    });
+
+    socket.on('chess:state', ({ fen, turn, lastMove: lm }) => {
+      chess.load(fen);
+      lastMove   = lm || null;
+      selectedSq = null;
+      validDests = [];
+      renderBoard();
+      updateTurnBar(turn);
+    });
+
+    socket.on('chess:game-over', ({ type, winner, reason }) => {
+      gameOver = true;
+      const indicator = document.getElementById('turn-indicator');
+      indicator.textContent = 'Game over';
+      indicator.classList.remove('my-turn');
+
+      const headline = document.getElementById('result-headline');
+      const detail   = document.getElementById('result-detail');
+      if (type === 'checkmate') {
+        headline.textContent = 'Checkmate';
+        detail.textContent   = winner === myUsername ? 'You win! ♛' : `${winner} wins! ♛`;
+      } else {
+        headline.textContent = reason || 'Draw';
+        detail.textContent   = '½  Draw';
+      }
+      document.getElementById('result-banner').classList.add('visible');
+    });
+
+    socket.on('chess:opponent-left', ({ username }) => {
+      gameOver = true;
+      const indicator = document.getElementById('turn-indicator');
+      indicator.textContent = 'Game over';
+      indicator.classList.remove('my-turn');
+      document.getElementById('result-headline').textContent = 'Game ended';
+      document.getElementById('result-detail').textContent   = `${username} left the game`;
+      document.getElementById('result-banner').classList.add('visible');
+    });
+
+    socket.on('chess:chat', ({ username, text, ts }) => {
+      appendChatMessage(username, text, ts);
+    });
+
+    // ── Helpers ──
+    function isMine(turn) {
+      return (turn === 'w' && myColor === 'white') ||
+             (turn === 'b' && myColor === 'black');
+    }
+
+    function squareFromGrid(gr, gc) {
+      if (myColor === 'white') {
+        return FILES[gc] + (8 - gr);
+      } else {
+        return FILES[7 - gc] + (gr + 1);
+      }
+    }
+
+    function boardIndices(gr, gc) {
+      // Returns [boardRow, boardCol] into chess.board() (board[0]=rank8)
+      if (myColor === 'white') {
+        return [gr, gc];
+      } else {
+        return [7 - gr, 7 - gc];
+      }
+    }
+
+    // ── Board render ──
+    function renderBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+      const b = chess.board();
+
+      for (let gr = 0; gr < 8; gr++) {
+        for (let gc = 0; gc < 8; gc++) {
+          const sq = squareFromGrid(gr, gc);
+          const [br, bc] = boardIndices(gr, gc);
+          const piece = b[br][bc];
+
+          // Square colour — same formula regardless of orientation
+          const isLight = (gr + gc) % 2 === 0;
+
+          const div = document.createElement('div');
+          div.className = 'sq ' + (isLight ? 'light' : 'dark');
+
+          // Last-move highlight
+          if (lastMove) {
+            if (sq === lastMove.from) div.classList.add('lm-from');
+            if (sq === lastMove.to)   div.classList.add('lm-to');
+          }
+
+          // Selection
+          if (sq === selectedSq) div.classList.add('selected');
+
+          // Valid move / capture
+          if (validDests.includes(sq)) {
+            div.classList.add(piece ? 'valid-capture' : 'valid-move');
+          }
+
+          // King in check
+          if (chess.isCheck() && piece?.type === 'k' && piece.color === chess.turn()) {
+            div.classList.add('in-check');
+          }
+
+          // Piece glyph
+          if (piece) {
+            const key = piece.color + piece.type.toUpperCase();
+            const span = document.createElement('span');
+            span.textContent = SYMBOLS[key];
+            span.className = piece.color === 'w' ? 'piece-w' : 'piece-b';
+            div.appendChild(span);
+          }
+
+          div.addEventListener('click', () => onSquareClick(sq));
+          boardEl.appendChild(div);
+        }
+      }
+    }
+
+    // ── Click handler ──
+    function onSquareClick(sq) {
+      if (gameOver) return;
+
+      // If we have a selection and this is a legal destination → submit move
+      if (selectedSq && validDests.includes(sq)) {
+        socket.emit('chess:move', { gameId, from: selectedSq, to: sq, promotion: 'q' });
+        selectedSq = null;
+        validDests = [];
+        renderBoard(); // clear selection; piece updates when server confirms
+        return;
+      }
+
+      // Not our turn → nothing to do
+      if (!isMine(chess.turn())) {
+        selectedSq = null;
+        validDests = [];
+        renderBoard();
+        return;
+      }
+
+      const piece = chess.get(sq);
+      const myPieceColor = myColor === 'white' ? 'w' : 'b';
+
+      if (piece && piece.color === myPieceColor) {
+        if (selectedSq === sq) {
+          // Click same piece again → deselect
+          selectedSq = null;
+          validDests = [];
+        } else {
+          // Select new piece and compute legal moves
+          selectedSq = sq;
+          validDests = chess.moves({ square: sq, verbose: true }).map(m => m.to);
+        }
+      } else {
+        // Clicked empty square or opponent's piece (not a valid move) → deselect
+        selectedSq = null;
+        validDests = [];
+      }
+
+      renderBoard();
+    }
+
+    // ── Turn bar ──
+    function updateTurnBar(turn) {
+      const mine = isMine(turn);
+      const el = document.getElementById('turn-indicator');
+      el.textContent = mine ? 'Your turn' : `${opponentName}'s turn`;
+      el.classList.toggle('my-turn', mine);
+    }
+
+    // ── Coordinate labels ──
+    function buildCoordinates() {
+      const rankOrder = myColor === 'white'
+        ? [8,7,6,5,4,3,2,1]
+        : [1,2,3,4,5,6,7,8];
+      const fileOrder = myColor === 'white'
+        ? 'abcdefgh'
+        : 'hgfedcba';
+
+      document.getElementById('rank-labels').innerHTML =
+        rankOrder.map(r => `<div class="rank-label">${r}</div>`).join('');
+
+      document.getElementById('file-labels').innerHTML =
+        fileOrder.split('').map(f => `<div class="file-label">${f}</div>`).join('');
+    }
+
+    // ── Chat ──
+    function appendChatMessage(username, text, ts) {
+      const msgs = document.getElementById('chat-messages');
+      const time = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg';
+
+      const meta = document.createElement('div');
+      meta.className = 'chat-meta';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'chat-name' + (username === myUsername ? ' mine' : '');
+      nameEl.textContent = username;
+
+      const timeEl = document.createElement('span');
+      timeEl.className = 'chat-time';
+      timeEl.textContent = time;
+
+      const textEl = document.createElement('div');
+      textEl.className = 'chat-text';
+      textEl.textContent = text;
+
+      meta.appendChild(nameEl);
+      meta.appendChild(timeEl);
+      msgDiv.appendChild(meta);
+      msgDiv.appendChild(textEl);
+      msgs.appendChild(msgDiv);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    // ── Init ──
+    async function init() {
+      if (!gameId) {
+        showError('No game ID in URL.');
+        return;
+      }
+
+      // Verify auth
+      const meRes = await fetch('/auth/me');
+      const me = await meRes.json();
+      if (!me.user) {
+        window.location.href = '/';
+        return;
+      }
+      myUsername = me.user;
+
+      // Verify game access & get colour assignment
+      const gameRes = await fetch(`/chess/game/${gameId}`);
+      if (!gameRes.ok) {
+        showError('Game not found or you are not a participant.');
+        return;
+      }
+      const game = await gameRes.json();
+      myColor      = game.color;    // 'white' | 'black'
+      opponentName = game.opponent;
+
+      // Populate UI
+      document.getElementById('my-name').textContent   = myUsername;
+      document.getElementById('my-badge').textContent  = myColor === 'white' ? '♙ White' : '♟ Black';
+      document.getElementById('opp-name').textContent  = opponentName;
+      document.getElementById('opp-badge').textContent = myColor === 'white' ? '♟ Black' : '♙ White';
+      buildCoordinates();
+
+      document.getElementById('loading').style.display   = 'none';
+      document.getElementById('game-area').style.display = 'flex';
+
+      // Chat form
+      document.getElementById('chat-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        socket.emit('chess:chat', { gameId, text });
+        input.value = '';
+      });
+
+      // Join socket rooms and request current board state
+      socket.emit('join-user-room', myUsername);
+      socket.emit('chess:join-game', gameId);
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('loading');
+      el.textContent = msg;
+      el.style.color = '#f38ba8';
+    }
+
+    init();
+  </script>
+</body>
+</html>
