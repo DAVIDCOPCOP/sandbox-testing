@@ -104,11 +104,14 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    const roomToken = new URLSearchParams(window.location.search).get('room');
     let lastBtn = null;
 
     socket.on('connect', () => {
       document.getElementById('status').textContent = 'Connected ✓';
+      if (roomToken) socket.emit('join-room', roomToken);
     });
+
     socket.on('disconnect', () => {
       document.getElementById('status').textContent = 'Disconnected';
     });
