@@ -95,6 +95,11 @@ io.on('connection', (socket) => {
     socket.join(`user:${username}`);
   });
 
+  // Desktop leaves its room on logout or account switch
+  socket.on('leave-user-room', (username) => {
+    socket.leave(`user:${username}`);
+  });
+
   // Phone joins its user room via the QR room token
   socket.on('join-room', (token) => {
     const username = roomTokens.get(token);

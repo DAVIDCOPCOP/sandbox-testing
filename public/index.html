@@ -316,6 +316,9 @@
 
     // ── Auth state ──
     function applyLoggedIn(username, lastColour) {
+      if (currentUser && currentUser !== username) {
+        socket.emit('leave-user-room', currentUser);
+      }
       currentUser = username;
       qrLoaded = false;
       socket.emit('join-user-room', username);
@@ -339,6 +342,7 @@
     }
 
     function applyLoggedOut() {
+      if (currentUser) socket.emit('leave-user-room', currentUser);
       currentUser = null;
       qrLoaded = false;
 
